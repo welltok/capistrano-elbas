@@ -58,7 +58,7 @@ module Elbas
             owners: ['self'],
             filters: [{
               name: "tag:#{DEPLOY_GROUP_TAG}",
-              values: [deploy_group],
+              values: [deploy_group].compact,
             }]
           }).images
         end
