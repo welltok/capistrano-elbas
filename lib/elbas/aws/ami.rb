@@ -6,15 +6,17 @@ module Elbas
       DEPLOY_ID_TAG = 'ELBAS-Deploy-id'.freeze
       DEPLOY_GROUP_TAG = 'ELBAS-Deploy-group'.freeze
 
-      attr_reader :id, :snapshots
+      attr_reader :id, :snapshots, :creation_date
 
-      def initialize(id, snapshots = [])
+      def initialize(id, snapshots = [], creation_date = nil)
         @id = id
         @aws_counterpart = ::Aws::EC2::Image.new id, client: aws_client
 
         @snapshots = snapshots.map do |snapshot|
           Elbas::AWS::Snapshot.new snapshot&.ebs&.snapshot_id
         end
+
+        @creation_date = creation_date
       end
 
       def deploy_id
@@ -29,8 +31,8 @@ module Elbas
         aws_amis_in_deploy_group.select { |aws_ami|
           deploy_id_from_aws_tags(aws_ami.tags) != deploy_id
         }.map { |aws_ami|
-          self.class.new aws_ami.image_id, aws_ami.block_device_mappings
-        }
+          self.class.new aws_ami.image_id, aws_ami.block_device_mappings, aws_ami.creation_date
+        }.sort_by(&:creation_date).reverse
       end
 
       def delete
@@ -58,7 +60,7 @@ module Elbas
             owners: ['self'],
             filters: [{
               name: "tag:#{DEPLOY_GROUP_TAG}",
-              values: [deploy_group],
+              values: [deploy_group].compact,
             }]
           }).images
         end
