@@ -25,13 +25,5 @@ def autoscale(groupname, properties = {})
     server instance.hostname, props
   end
 
-  if instances.any?
-    after 'deploy', 'elbas:deploy'
-  else
-    error <<~MESSAGE
-      Could not create AMI because no running instances were found in the specified
-      AutoScale group. Ensure that the AutoScale group name is correct and that
-      there is at least one running instance attached to it.
-    MESSAGE
-  end
+  after 'deploy', 'elbas:deploy'
 end

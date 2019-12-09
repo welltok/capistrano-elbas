@@ -19,23 +19,27 @@ namespace :elbas do
 
       asg = Elbas::AWS::AutoscaleGroup.new autoscale_group_name
 
-      info "[#{autoscale_group_name}] Creating AMI from a running instance..."
-      ami = Elbas::AWS::AMI.create asg.instances.running.sample
-      ami.tag 'ELBAS-Deploy-group', asg.name
-      ami.tag 'ELBAS-Deploy-id', env.timestamp.to_i.to_s
-      info  "Created AMI: #{ami.id}"
+      if asg.instances.count == 0
+        error "No running instances found in #{asg.name} Autoscaling Group. Skipping creation of AMI and update of launch template..."
+      else
+        info "[#{autoscale_group_name}] Creating AMI from a running instance..."
+        ami = Elbas::AWS::AMI.create asg.instances.running.sample
+        ami.tag 'ELBAS-Deploy-group', asg.name
+        ami.tag 'ELBAS-Deploy-id', env.timestamp.to_i.to_s
+        info  "Created AMI: #{ami.id}"
 
-      info "[#{autoscale_group_name}] Updating launch template with the new AMI..."
-      launch_template = asg.launch_template.update ami
-      info "[#{autoscale_group_name}] Updated launch template, new default version = #{launch_template.version}"
+        info "[#{autoscale_group_name}] Updating launch template with the new AMI..."
+        launch_template = asg.launch_template.update ami
+        info "[#{autoscale_group_name}] Updated launch template, new default version = #{launch_template.version}"
 
-      info "[#{autoscale_group_name}] Cleaning up old AMIs..."
+        info "[#{autoscale_group_name}] Cleaning up old AMIs..."
 
-      ancestor_count = ami.ancestors.size
+        ancestor_count = ami.ancestors.size
 
-      ami.ancestors.slice(keep_previous,ancestor_count).each do |ancestor|
-        info "[#{autoscale_group_name}] Deleting old AMI: #{ancestor.id}"
-        ancestor.delete
+        ami.ancestors.slice(keep_previous,ancestor_count).each do |ancestor|
+          info "[#{autoscale_group_name}] Deleting old AMI: #{ancestor.id}"
+          ancestor.delete
+        end
       end
     end
 
